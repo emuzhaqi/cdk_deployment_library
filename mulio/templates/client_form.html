@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if is_edit %}Edit Client{% else %}Add New Client{% endif %} - Client Management System
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-{% if is_edit %}edit{% else %}plus{% endif %} me-2"></i>
+                    {% if is_edit %}Edit Client{% else %}Add New Client{% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">
+                            <i class="fas fa-user me-1"></i>Client Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="client_name" 
+                               name="client_name" 
+                               value="{{ client.client_name if client else '' }}"
+                               placeholder="Enter client name"
+                               required>
+                        <div class="form-text">The name of the client or organization.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="use_fallback" 
+                                   name="use_fallback"
+                                   {% if client and client.use_fallback %}checked{% endif %}>
+                            <label class="form-check-label" for="use_fallback">
+                                <i class="fas fa-shield-alt me-1"></i>Use Fallback
+                            </label>
+                        </div>
+                        <div class="form-text">Enable fallback functionality for this client.</div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-{% if is_edit %}save{% else %}plus{% endif %} me-1"></i>
+                            {% if is_edit %}Update Client{% else %}Create Client{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if is_edit and client %}
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-1"></i>Client Information
+                </h6>
+                <div class="row">
+                    <div class="col-sm-12">
+                        <strong>Client ID:</strong><br>
+                        <code class="text-muted">{{ client.client_id }}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-focus on the first input field
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('client_name').focus();
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const clientName = document.getElementById('client_name').value.trim();
+    
+    if (!clientName) {
+        e.preventDefault();
+        alert('Please fill in the client name.');
+        return false;
+    }
+});
+</script>
+{% endblock %}
