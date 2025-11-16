@@ -12,8 +12,8 @@ def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     """
     try:
         # Get Keycloak configuration
-        issuer = os.environ.get('OAUTH_ISSUER')
-        client_id = os.environ.get('OIDC_CLIENT_ID')
+        issuer = os.environ.get("OAUTH_ISSUER")
+        client_id = os.environ.get("OIDC_CLIENT_ID")
 
         if not issuer or not client_id:
             print("OAUTH_ISSUER or OIDC_CLIENT_ID not configured")
@@ -27,12 +27,12 @@ def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
 
         # Decode the token header to get the key ID
         unverified_header = jwt.get_unverified_header(token)
-        key_id = unverified_header.get('kid')
+        key_id = unverified_header.get("kid")
 
         # Find the matching public key
         public_key = None
-        for key in jwks.get('keys', []):
-            if key.get('kid') == key_id:
+        for key in jwks.get("keys", []):
+            if key.get("kid") == key_id:
                 public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
                 break
 
@@ -42,19 +42,16 @@ def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
 
         # Verify and decode the token
         decoded_token = jwt.decode(
-            token,
-            public_key,
-            algorithms=['RS256'],
-            audience=client_id,
-            issuer=issuer
+            token, public_key, algorithms=["RS256"], audience=client_id, issuer=issuer
         )
 
         # Extract user information
         user_info = {
-            'sub': decoded_token.get('sub'),
-            'name': decoded_token.get('name') or decoded_token.get('preferred_username'),
-            'email': decoded_token.get('email'),
-            'roles': decoded_token.get('realm_access', {}).get('roles', [])
+            "sub": decoded_token.get("sub"),
+            "name": decoded_token.get("name")
+            or decoded_token.get("preferred_username"),
+            "email": decoded_token.get("email"),
+            "roles": decoded_token.get("realm_access", {}).get("roles", []),
         }
 
         return user_info
@@ -74,12 +71,12 @@ def extract_token_from_request() -> Optional[str]:
     """Extract JWT token from the request"""
     try:
         # Check Authorization header
-        auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
             return auth_header[7:]  # Remove 'Bearer ' prefix
 
         # Check for token in query parameters (alternative)
-        return request.args.get('token')
+        return request.args.get("token")
 
     except Exception:
         return None
@@ -96,19 +93,29 @@ def require_api_auth(f):
         token = extract_token_from_request()
 
         if not token:
-            return jsonify({
-                'error': 'Authorization token required',
-                'message': 'Please provide a valid JWT token in the Authorization header'
-            }), 401
+            return (
+                jsonify(
+                    {
+                        "error": "Authorization token required",
+                        "message": "Please provide a valid JWT token in the Authorization header",
+                    }
+                ),
+                401,
+            )
 
         # Validate the token
         user_info = validate_jwt_token(token)
 
         if not user_info:
-            return jsonify({
-                'error': 'Invalid or expired token',
-                'message': 'The provided token is invalid or has expired'
-            }), 401
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid or expired token",
+                        "message": "The provided token is invalid or has expired",
+                    }
+                ),
+                401,
+            )
 
         # Add user info to request context for use in the route
         request.api_user = user_info
