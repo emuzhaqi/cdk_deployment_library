@@ -1,0 +1,260 @@
+{
+    "appName": "example-app",
+    "environment": "dev",
+    "account": "123456789012",
+    "region": "us-east-1",
+    "tags": {
+        "namespace": "tmiq",
+        "attributes": [
+            "api",
+            "worker",
+            "admin"
+        ]
+    },
+    "dynamodb": {
+        "namePrefix": "example-",
+        "tables": [
+            {
+                "name": "users",
+                "partitionKey": {
+                    "name": "user_id",
+                    "type": "string"
+                },
+                "sortKey": {
+                    "name": "created_at",
+                    "type": "number"
+                },
+                "billingMode": "pay_per_request",
+                "pointInTimeRecovery": true,
+                "tableClass": "standard",
+                "globalSecondaryIndexes": [
+                    {
+                        "indexName": "email-index",
+                        "partitionKey": {
+                            "name": "email",
+                            "type": "string"
+                        },
+                        "projectionType": "all"
+                    }
+                ]
+            },
+            {
+                "name": "products",
+                "partitionKey": {
+                    "name": "product_id",
+                    "type": "string"
+                },
+                "billingMode": "pay_per_request",
+                "pointInTimeRecovery": true,
+                "tableClass": "standard"
+            }
+        ]
+    },
+    "lambdas": [
+        {
+            "id": "api",
+            "handler": "api.handler",
+            "codePath": "../api",
+            "runtime": "python3.13",
+            "architecture": "arm64",
+            "memory": 512,
+            "timeout": 30,
+            "description": "Main REST API handler",
+            "exclude": [
+                ".git/**",
+                "*.md",
+                "tests/**",
+                ".env"
+            ],
+            "layers": [
+                {
+                    "path": "../layers/api-dependencies",
+                    "description": "API dependencies layer"
+                }
+            ],
+            "routes": [
+                {
+                    "path": "/api/users",
+                    "methods": [
+                        "GET",
+                        "POST"
+                    ]
+                },
+                {
+                    "path": "/api/users/{id}",
+                    "methods": [
+                        "GET",
+                        "PUT",
+                        "DELETE"
+                    ]
+                },
+                {
+                    "path": "/api/products",
+                    "methods": [
+                        "GET",
+                        "POST"
+                    ]
+                },
+                {
+                    "path": "/api/products/{id}",
+                    "methods": [
+                        "GET",
+                        "PUT",
+                        "DELETE"
+                    ]
+                }
+            ],
+            "tableAccess": [
+                "users",
+                "products"
+            ],
+            "needsSecrets": true,
+            "secretsConfig": {
+                "fields": [
+                    {
+                        "key": "SECRET_KEY",
+                        "description": "Application secret key",
+                        "generator": "random"
+                    },
+                    {
+                        "key": "OIDC_CLIENT_SECRET",
+                        "description": "OAuth client secret",
+                        "generator": "prompt"
+                    },
+                    {
+                        "key": "API_KEY",
+                        "description": "External API key",
+                        "generator": "prompt"
+                    }
+                ]
+            },
+            "environment": {
+                "API_VERSION": "v1",
+                "ENABLE_CACHING": "true"
+            }
+        },
+        {
+            "id": "admin",
+            "handler": "admin.handler",
+            "codePath": "../admin",
+            "runtime": "python3.13",
+            "architecture": "arm64",
+            "memory": 256,
+            "timeout": 60,
+            "description": "Admin interface handler",
+            "exclude": [
+                ".git/**",
+                "*.md",
+                "tests/**"
+            ],
+            "routes": [
+                {
+                    "path": "/admin/{proxy+}",
+                    "methods": [
+                        "ANY"
+                    ]
+                }
+            ],
+            "tableAccess": [
+                "*"
+            ],
+            "needsSecrets": true,
+            "customPolicies": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "cloudwatch:PutMetricData"
+                    ],
+                    "Resource": [
+                        "*"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "worker",
+            "handler": "worker.handler",
+            "codePath": "../worker",
+            "runtime": "nodejs20.x",
+            "architecture": "x86_64",
+            "memory": 1024,
+            "timeout": 900,
+            "description": "Background job processor",
+            "exclude": [
+                "node_modules/**",
+                ".git/**",
+                "*.md"
+            ],
+            "layers": [
+                {
+                    "path": "../layers/worker-dependencies",
+                    "description": "Worker dependencies layer",
+                    "compatibleRuntimes": [
+                        "nodejs20.x",
+                        "nodejs18.x"
+                    ]
+                }
+            ],
+            "routes": [
+                {
+                    "path": "/worker/process",
+                    "methods": [
+                        "POST"
+                    ]
+                }
+            ],
+            "tableAccess": [
+                "users",
+                "products"
+            ],
+            "needsSecrets": true,
+            "environment": {
+                "MAX_RETRIES": "3",
+                "QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/123456789012/job-queue"
+            },
+            "customPolicies": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sqs:ReceiveMessage",
+                        "sqs:DeleteMessage",
+                        "sqs:SendMessage"
+                    ],
+                    "Resource": [
+                        "arn:aws:sqs:us-east-1:123456789012:job-queue"
+                    ]
+                }
+            ]
+        }
+    ],
+    "oidc": {
+        "issuer": "https://auth.example.com",
+        "clientId": "example-client-id",
+        "redirectPath": "/auth/callback"
+    },
+    "deploymentType": "api-gateway",
+    "ingress": {
+        "enabled": true,
+        "domain": "api.example.com",
+        "hostedZone": "Z1234567890ABC",
+        "zoneName": "example.com"
+    },
+    "logRetentionDays": 30,
+    "removalPolicy": {
+        "table": "retain",
+        "secrets": "retain",
+        "logGroup": "destroy",
+        "lambdaLayer": "destroy"
+    },
+    "globalEnvironment": {
+        "NODE_ENV": "development",
+        "LOG_LEVEL": "INFO",
+        "REGION": "us-east-1"
+    },
+    "globalTags": {
+        "Project": "ExampleApp",
+        "Team": "Platform",
+        "Environment": "dev",
+        "ManagedBy": "CDK"
+    }
+}

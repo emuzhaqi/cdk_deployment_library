@@ -1,0 +1,110 @@
+{
+  "appName": "CDKLambda",
+  "environment": "dev",
+  "account": "123456789012",
+  "region": "us-east-1",
+  "tags": {
+    "namespace": "ps",
+    "environment": "ue1",
+    "stage": "dev",
+    "attributes": [
+      "api",
+      "webserver"
+    ],
+    "name": "CDKLambda"
+  },
+  "dynamodb": {
+    "namePrefix": "mulio-",
+    "tables": [
+      {
+        "name": "clients",
+        "partitionKey": {
+          "name": "client_id",
+          "type": "string"
+        },
+        "billingMode": "pay_per_request",
+        "pointInTimeRecovery": false,
+        "tableClass": "standard"
+      }
+    ]
+  },
+  "lambdas": [
+    {
+      "id": "api",
+      "handler": "lambda_function.lambda_handler",
+      "codePath": "../mulio",
+      "runtime": "python3.13",
+      "architecture": "arm64",
+      "memory": 512,
+      "timeout": 0.5,
+      "description": "Mulio Flask API",
+      "exclude": [
+        "__pycache__/**",
+        "*.pyc",
+        ".env"
+      ],
+      "bundleDependencies": true,
+      "layers": [
+        {
+          "path": "../layers/python-dependencies/build",
+          "description": "Python dependencies layer (Flask, boto3, apig-wsgi, etc.)",
+          "compatibleRuntimes": [
+            "python3.13"
+          ]
+        }
+      ],
+      "routes": [
+        {
+          "path": "/{proxy+}",
+          "methods": [
+            "ANY"
+          ]
+        }
+      ],
+      "tableAccess": [
+        "*"
+      ],
+      "needsSecrets": true,
+      "secretsConfig": {
+        "fields": [
+          {
+            "key": "SECRET_KEY",
+            "description": "Flask session secret key",
+            "generator": "random"
+          },
+          {
+            "key": "OIDC_CLIENT_SECRET",
+            "description": "OAuth client secret from Keycloak",
+            "generator": "prompt"
+          }
+        ]
+      },
+      "newRelic": {
+        "licenseKey" : "1234-4321",
+        "enabled": true,
+        "logEnabled": true,
+        "sendFunctionLogs": false,
+        "logLevel": "INFO"
+      }
+    }
+  ],
+  "oidc": {
+        "issuer": "https://auth.example.com",
+        "clientId": "example-client-id",
+        "redirectPath": "/auth/callback"
+    },
+  "deploymentType": "api-gateway",
+  "ingress": {
+    "enabled": true,
+    "domain": "api.example.com",
+    "hostedZone": "Z1234567890ABC",
+    "zoneName": "example.com"
+  },
+  "logRetentionDays": 7,
+  "removalPolicy": {
+    "table": "destroy",
+    "secrets": "destroy",
+    "logGroup": "destroy",
+    "lambdaLayer": "destroy"
+  }
+}
