@@ -4,7 +4,7 @@ from flask import Blueprint, session, redirect, request, url_for, current_app
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
 
-from utils.secrets_util import get_secrets
+from mulio.utils.secrets_util import get_secrets
 
 
 def init_auth(app):
