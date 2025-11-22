@@ -1,10 +1,13 @@
 import os
+import uuid
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import boto3
 from botocore.exceptions import ClientError
-import uuid
-from utils.secrets_util import get_secrets
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+
+from mulio.auth.api_auth import require_api_auth
+from mulio.auth.core_auth import init_auth
+from mulio.utils.secrets_util import get_secrets
 
 app = Flask(__name__)
 
@@ -12,17 +15,16 @@ app = Flask(__name__)
 secrets = get_secrets()
 app.secret_key = secrets.secret_key
 
-from auth.core_auth import init_auth
-from auth.api_auth import require_api_auth
 require_login = init_auth(app)
 
 # DynamoDB configuration
-DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME')
-AWS_REGION = os.environ.get('AWS_REGION')
+DYNAMODB_TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
+AWS_REGION = os.environ.get("AWS_REGION")
 
 # Initialize DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 table = dynamodb.Table(DYNAMODB_TABLE_NAME)
+
 
 class ClientModel:
     """Model class for handling DynamoDB operations"""
@@ -33,9 +35,9 @@ class ClientModel:
         try:
             client_id = str(uuid.uuid4())
             item = {
-                'client_id': client_id,
-                'client_name': client_name,
-                'use_fallback': use_fallback
+                "client_id": client_id,
+                "client_name": client_name,
+                "use_fallback": use_fallback,
             }
             table.put_item(Item=item)
             return client_id
@@ -46,8 +48,8 @@ class ClientModel:
     def get_client(client_id):
         """Get a client by ID"""
         try:
-            response = table.get_item(Key={'client_id': client_id})
-            return response.get('Item')
+            response = table.get_item(Key={"client_id": client_id})
+            return response.get("Item")
         except ClientError as e:
             raise Exception(f"Error getting client: {str(e)}")
 
@@ -56,7 +58,7 @@ class ClientModel:
         """Get all clients"""
         try:
             response = table.scan()
-            return response.get('Items', [])
+            return response.get("Items", [])
         except ClientError as e:
             raise Exception(f"Error getting clients: {str(e)}")
 
@@ -65,12 +67,12 @@ class ClientModel:
         """Update a client"""
         try:
             table.update_item(
-                Key={'client_id': client_id},
-                UpdateExpression='SET client_name = :name, use_fallback = :fallback',
+                Key={"client_id": client_id},
+                UpdateExpression="SET client_name = :name, use_fallback = :fallback",
                 ExpressionAttributeValues={
-                    ':name': client_name,
-                    ':fallback': use_fallback
-                }
+                    ":name": client_name,
+                    ":fallback": use_fallback,
+                },
             )
             return True
         except ClientError as e:
@@ -80,180 +82,193 @@ class ClientModel:
     def delete_client(client_id):
         """Delete a client"""
         try:
-            table.delete_item(Key={'client_id': str(client_id)})
+            table.delete_item(Key={"client_id": str(client_id)})
             return True
         except ClientError as e:
             raise Exception(f"Error deleting client: {str(e)}")
 
+
 # Routes
-@app.route('/')
+@app.route("/")
 def index():
     try:
         clients = ClientModel.get_all_clients()
-        return render_template('index.html', clients=clients)
+        return render_template("index.html", clients=clients)
     except Exception as e:
-        flash(f'Error loading clients: {str(e)}', 'error')
-        return render_template('index.html', clients=[])
+        flash(f"Error loading clients: {str(e)}", "error")
+        return render_template("index.html", clients=[])
 
-@app.route('/client/new', methods=['GET', 'POST'])
+
+@app.route("/client/new", methods=["GET", "POST"])
 def new_client():
     """Create a new client"""
-    if request.method == 'POST':
-        client_name = request.form.get('client_name', '').strip()
-        use_fallback = request.form.get('use_fallback') == 'on'
+    if request.method == "POST":
+        client_name = request.form.get("client_name", "").strip()
+        use_fallback = request.form.get("use_fallback") == "on"
 
         if not client_name:
-            flash('Client name is required', 'error')
-            return render_template('client_form.html')
+            flash("Client name is required", "error")
+            return render_template("client_form.html")
 
         try:
             client_id = ClientModel.create_client(client_name, use_fallback)
-            flash(f'Client created successfully with ID: {client_id}', 'success')
-            return redirect(url_for('index'))
+            flash(f"Client created successfully with ID: {client_id}", "success")
+            return redirect(url_for("index"))
         except Exception as e:
-            flash(f'Error creating client: {str(e)}', 'error')
-            return render_template('client_form.html')
+            flash(f"Error creating client: {str(e)}", "error")
+            return render_template("client_form.html")
 
-    return render_template('client_form.html')
+    return render_template("client_form.html")
 
-@app.route('/client/<client_id>')
+
+@app.route("/client/<client_id>")
 def view_client(client_id):
     """View a specific client"""
     try:
         client = ClientModel.get_client(client_id)
         if not client:
-            flash('Client not found', 'error')
-            return redirect(url_for('index'))
-        return render_template('client_detail.html', client=client)
+            flash("Client not found", "error")
+            return redirect(url_for("index"))
+        return render_template("client_detail.html", client=client)
     except Exception as e:
-        flash(f'Error loading client: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        flash(f"Error loading client: {str(e)}", "error")
+        return redirect(url_for("index"))
 
-@app.route('/client/<client_id>/edit', methods=['GET', 'POST'])
+
+@app.route("/client/<client_id>/edit", methods=["GET", "POST"])
 def edit_client(client_id):
     """Edit a client"""
     try:
         client = ClientModel.get_client(client_id)
         if not client:
-            flash('Client not found', 'error')
-            return redirect(url_for('index'))
+            flash("Client not found", "error")
+            return redirect(url_for("index"))
 
-        if request.method == 'POST':
-            client_name = request.form.get('client_name', '').strip()
-            use_fallback = request.form.get('use_fallback') == 'on'
+        if request.method == "POST":
+            client_name = request.form.get("client_name", "").strip()
+            use_fallback = request.form.get("use_fallback") == "on"
 
             if not client_name:
-                flash('Client name is required', 'error')
-                return render_template('client_form.html', client=client, is_edit=True)
+                flash("Client name is required", "error")
+                return render_template("client_form.html", client=client, is_edit=True)
 
             try:
                 ClientModel.update_client(client_id, client_name, use_fallback)
-                flash('Client updated successfully', 'success')
-                return redirect(url_for('view_client', client_id=client_id))
+                flash("Client updated successfully", "success")
+                return redirect(url_for("view_client", client_id=client_id))
             except Exception as e:
-                flash(f'Error updating client: {str(e)}', 'error')
-                return render_template('client_form.html', client=client, is_edit=True)
+                flash(f"Error updating client: {str(e)}", "error")
+                return render_template("client_form.html", client=client, is_edit=True)
 
-        return render_template('client_form.html', client=client, is_edit=True)
+        return render_template("client_form.html", client=client, is_edit=True)
 
     except Exception as e:
-        flash(f'Error loading client: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        flash(f"Error loading client: {str(e)}", "error")
+        return redirect(url_for("index"))
 
-@app.route('/client/<client_id>/delete', methods=['POST'])
+
+@app.route("/client/<client_id>/delete", methods=["POST"])
 def delete_client(client_id):
     """Delete a client"""
     try:
         ClientModel.delete_client(client_id)
-        flash('Client deleted successfully', 'success')
+        flash("Client deleted successfully", "success")
     except Exception as e:
-        flash(f'Error deleting client: {str(e)}', 'error')
+        flash(f"Error deleting client: {str(e)}", "error")
 
-    return redirect(url_for('index'))
+    return redirect(url_for("index"))
+
 
 # API endpoints for programmatic access
-@app.route('/api/clients', methods=['GET'])
+@app.route("/api/clients", methods=["GET"])
 @require_api_auth
 def api_get_clients():
     """API endpoint to get all clients"""
     try:
         clients = ClientModel.get_all_clients()
-        return jsonify({'clients': clients})
+        return jsonify({"clients": clients})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/clients', methods=['POST'])
+
+@app.route("/api/clients", methods=["POST"])
 @require_api_auth
 def api_create_client():
     """API endpoint to create a client"""
     try:
         data = request.get_json()
-        client_name = data.get('client_name', '').strip()
-        use_fallback = data.get('use_fallback', False)
-        
-        if not client_name:
-            return jsonify({'error': 'client_name is required'}), 400
-        
-        client_id = ClientModel.create_client(client_name, use_fallback)
-        return jsonify({'client_id': client_id, 'message': 'Client created successfully'}), 201
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        client_name = data.get("client_name", "").strip()
+        use_fallback = data.get("use_fallback", False)
 
-@app.route('/api/clients/<client_id>', methods=['GET'])
+        if not client_name:
+            return jsonify({"error": "client_name is required"}), 400
+
+        client_id = ClientModel.create_client(client_name, use_fallback)
+        return (
+            jsonify({"client_id": client_id, "message": "Client created successfully"}),
+            201,
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clients/<client_id>", methods=["GET"])
 @require_api_auth
 def api_get_client(client_id):
     """API endpoint to get a specific client"""
     try:
         client = ClientModel.get_client(client_id)
         if not client:
-            return jsonify({'error': 'Client not found'}), 404
-        return jsonify({'client': client})
+            return jsonify({"error": "Client not found"}), 404
+        return jsonify({"client": client})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/clients/<client_id>', methods=['PUT'])
+
+@app.route("/api/clients/<client_id>", methods=["PUT"])
 @require_api_auth
 def api_update_client(client_id):
     """API endpoint to update a client"""
     try:
         data = request.get_json()
-        client_name = data.get('client_name', '').strip()
-        use_fallback = data.get('use_fallback', False)
-        
-        if not client_name:
-            return jsonify({'error': 'client_name is required'}), 400
-        
-        ClientModel.update_client(client_id, client_name, use_fallback)
-        return jsonify({'message': 'Client updated successfully'})
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        client_name = data.get("client_name", "").strip()
+        use_fallback = data.get("use_fallback", False)
 
-@app.route('/api/clients/<client_id>', methods=['DELETE'])
+        if not client_name:
+            return jsonify({"error": "client_name is required"}), 400
+
+        ClientModel.update_client(client_id, client_name, use_fallback)
+        return jsonify({"message": "Client updated successfully"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clients/<client_id>", methods=["DELETE"])
 @require_api_auth
 def api_delete_client(client_id):
     """API endpoint to delete a client"""
     try:
         ClientModel.delete_client(client_id)
-        return jsonify({'message': 'Client deleted successfully'})
+        return jsonify({"message": "Client deleted successfully"})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/health")
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'healthy'}), 200
+    return jsonify({"status": "healthy"}), 200
 
 
 # --- Protect ALL routes with authentication ---
-app.view_functions['index'] = require_login(app.view_functions['index'])
-app.view_functions['new_client'] = require_login(app.view_functions['new_client'])
-app.view_functions['view_client'] = require_login(app.view_functions['view_client'])
-app.view_functions['edit_client'] = require_login(app.view_functions['edit_client'])
-app.view_functions['delete_client'] = require_login(app.view_functions['delete_client'])
+app.view_functions["index"] = require_login(app.view_functions["index"])
+app.view_functions["new_client"] = require_login(app.view_functions["new_client"])
+app.view_functions["view_client"] = require_login(app.view_functions["view_client"])
+app.view_functions["edit_client"] = require_login(app.view_functions["edit_client"])
+app.view_functions["delete_client"] = require_login(app.view_functions["delete_client"])
 
-if __name__ == '__main__':
-    DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(debug=DEBUG, host='0.0.0.0', port=8080)
+if __name__ == "__main__":
+    DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+    app.run(debug=DEBUG, host="0.0.0.0", port=8080)
