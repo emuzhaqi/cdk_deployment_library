@@ -1,5 +1,6 @@
 from apig_wsgi import make_lambda_handler
-from app import app
+
+from mulio.app import app
 
 
 def lambda_handler(event, context):

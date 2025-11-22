@@ -2,11 +2,11 @@ import os
 import uuid
 
 import boto3
-from auth.api_auth import require_api_auth
-from auth.core_auth import init_auth
 from botocore.exceptions import ClientError
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 
+from mulio.auth.api_auth import require_api_auth
+from mulio.auth.core_auth import init_auth
 from mulio.utils.secrets_util import get_secrets
 
 app = Flask(__name__)

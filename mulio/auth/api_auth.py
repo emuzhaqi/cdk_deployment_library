@@ -42,8 +42,9 @@ def validate_jwt_token(token: str) -> dict[str, Any] | None:
             return None
 
         # Verify and decode the token
+        # Type ignore: jwt.decode accepts RSAPublicKey which is a subtype of the union
         decoded_token = jwt.decode(
-            token, public_key, algorithms=["RS256"], audience=client_id, issuer=issuer
+            token, public_key, algorithms=["RS256"], audience=client_id, issuer=issuer  # type: ignore[arg-type]
         )
 
         # Extract user information
