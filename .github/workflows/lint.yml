@@ -51,4 +51,4 @@ jobs:
 
       - name: Run mypy
         run: |
-          uv run mypy tbc
+          uv run mypy mulio

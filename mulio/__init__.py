@@ -1,0 +1,2 @@
+"""Mulio Flask application package."""
+

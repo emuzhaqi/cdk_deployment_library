@@ -1,8 +1,9 @@
 import os
 from functools import wraps
-from flask import Blueprint, session, redirect, request, url_for, current_app
-from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
+
+from authlib.integrations.flask_client import OAuth
+from flask import Blueprint, current_app, redirect, request, session, url_for
 
 from mulio.utils.secrets_util import get_secrets
 
@@ -64,12 +65,12 @@ def init_auth(app):
         session.clear()
 
         if issuer:
-            params = {
-                "post_logout_redirect_uri": request.url_root.rstrip("/") + "/login"
-            }
+            params = {"post_logout_redirect_uri": request.url_root.rstrip("/") + "/login"}
             params["id_token_hint"] = id_token
 
-            end_session_url = f"{issuer.rstrip('/')}/protocol/openid-connect/logout?{urlencode(params)}"
+            end_session_url = (
+                f"{issuer.rstrip('/')}/protocol/openid-connect/logout?{urlencode(params)}"
+            )
             return redirect(end_session_url)
 
         return redirect(url_for("auth.login"))

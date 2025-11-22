@@ -1,12 +1,13 @@
 import os
+from functools import wraps
+from typing import Any
+
 import jwt
 import requests
-from functools import wraps
-from flask import request, jsonify
-from typing import Dict, Any, Optional
+from flask import jsonify, request
 
 
-def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
+def validate_jwt_token(token: str) -> dict[str, Any] | None:
     """
     Validate JWT token against Keycloak
     """
@@ -48,8 +49,7 @@ def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         # Extract user information
         user_info = {
             "sub": decoded_token.get("sub"),
-            "name": decoded_token.get("name")
-            or decoded_token.get("preferred_username"),
+            "name": decoded_token.get("name") or decoded_token.get("preferred_username"),
             "email": decoded_token.get("email"),
             "roles": decoded_token.get("realm_access", {}).get("roles", []),
         }
@@ -67,7 +67,7 @@ def validate_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def extract_token_from_request() -> Optional[str]:
+def extract_token_from_request() -> str | None:
     """Extract JWT token from the request"""
     try:
         # Check Authorization header

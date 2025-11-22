@@ -1,9 +1,9 @@
-import os
 import json
+import os
+from dataclasses import dataclass
+
 import boto3
 from botocore.exceptions import ClientError
-from typing import Optional
-from dataclasses import dataclass
 
 
 @dataclass
@@ -18,7 +18,7 @@ class Secrets:
 
     secret_key: str
     oidc_client_secret: str
-    new_relic_license_key: Optional[str] = None
+    new_relic_license_key: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Secrets":
@@ -87,7 +87,7 @@ def _fetch_secrets_from_aws() -> dict:
 
 
 # Module-level cache: secrets are fetched once when the module is first imported
-_secrets_cache: Optional[Secrets] = None
+_secrets_cache: Secrets | None = None
 
 
 def get_secrets() -> Secrets:
