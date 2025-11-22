@@ -1,2 +1,1 @@
 """Mulio Flask application package."""
-

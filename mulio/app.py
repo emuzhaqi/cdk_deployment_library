@@ -6,6 +6,7 @@ from auth.api_auth import require_api_auth
 from auth.core_auth import init_auth
 from botocore.exceptions import ClientError
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+
 from mulio.utils.secrets_util import get_secrets
 
 app = Flask(__name__)
